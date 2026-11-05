@@ -645,7 +645,7 @@ button.btn{font-family:var(--font)}
   function rub(v){return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,NB)+NB+'₽';}
   var BASE=8397;           // маржа/заработок с комплекта при скидке 30% (27 990 → 19 593)
   // Куда отправлять заявки. Пусто — тестовый режим: форма показывает «Заявка отправлена», но ничего не отправляет.
-  var LEAD_ENDPOINT='';
+  var LEAD_ENDPOINT='https://formsubmit.co/ajax/esikovds@yandex.ru';
   var params=new URLSearchParams(location.search);
   var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -775,8 +775,15 @@ button.btn{font-family:var(--font)}
     function done(demo){btn.disabled=false;form.querySelector('[data-step-form]').hidden=true;form.querySelector('[data-step-done]').hidden=false;
       form.querySelector('[data-done-text]').textContent=LEAD[PAGE].done;form.querySelector('[data-demo]').hidden=!demo;form.reset();}
     if(!LEAD_ENDPOINT){done(true);return;}
-    fetch(LEAD_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(r){if(!r.ok)throw new Error(r.status);done(false);})
+    var who=PAGE==='master'?'сантехник':'интегратор';
+    var utm=Object.keys(data.utm).filter(function(k){return k!=='p'&&k!=='v'&&k!=='review';}).map(function(k){return k+'='+data.utm[k];}).join(', ');
+    var mail={_subject:'Заявка Дамба: '+who+', вариант '+V+' ('+data.code+')',_template:'table',_captcha:'false',
+      'Аудитория':who,'Вариант':V,'Код':data.code,'Имя':data.name,'Телефон':data.phone,'Город':data.city};
+    if(PAGE==='integrator') mail['Компания']=data.company||'—';
+    mail[PAGE==='master'?'Квартир в месяц':'Объектов в месяц']=data.volume||'—';
+    mail['Метки ссылки']=utm||'—'; mail['Страница']=location.href; mail['Время']=new Date().toLocaleString('ru-RU');
+    fetch(LEAD_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(mail)})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok||String(j.success)!=='true')throw new Error(j.message||r.status);done(false);});})
       .catch(function(){btn.disabled=false;err.textContent='Не удалось отправить заявку. Проверьте интернет и попробуйте ещё раз.';err.hidden=false;});
   });
 
